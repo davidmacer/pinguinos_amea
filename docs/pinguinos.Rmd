@@ -1,0 +1,84 @@
+---
+title: "¿Y los pingüinos apá?"
+author: "David Mácer"
+date: "8/25/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(rbokeh)
+library(leaflet)
+```
+# ¿Cómo se ven los datos crudos?
+
+```{r import, include=TRUE}
+pinguinos <- read.csv("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/master/inst/extdata/penguins_raw.csv")
+pinguinos %>% head()
+```
+
+```{r tabla, include=TRUE}
+knitr::kable(pinguinos %>% head())
+```
+
+```{r agregado, echo=FALSE, include=TRUE}
+tabla_desc <- pinguinos %>% group_by(Species, Sex) %>% summarise(promedio = mean(Body.Mass..g.))
+knitr::kable(tabla_desc)
+```
+
+## ¿Existe diferencia en las tallas entre cada especie de pingüinos?
+
+### Gráficas estáticas usando ggplot2
+```{r echo=FALSE, include=TRUE}
+boxplot(pinguinos$Body.Mass..g. ~ pinguinos$Species, xlab = "Especies", ylab = "Masa corporal (g)")
+```
+
+```{r bp-ggplot, echo=FALSE, include=TRUE}
+ggplot(data = pinguinos, aes(x = Species, y = Body.Mass..g., fill = Sex)) + 
+  geom_boxplot() + 
+  ggtitle("Diferencia de masa corporal de cada especie \n
+          separado por sexo") + 
+  xlab("Especie") + ylab("Masa corporal (g)") + 
+  theme(
+    plot.title = element_text(family = "Serif", color="black", size=16, face="bold.italic"),
+    axis.title.x = element_text(color="blue", size=14, face="bold"),
+    axis.title.y = element_text(color="blue", size=14, face="bold"),
+    axis.text.x = element_text(face="bold", color="red", size=6)
+  )
+```
+
+### Gráficas dinámicas usando rbokeh
+
+```{r rbokeh, echo=FALSE, include=TRUE}
+p <- figure(width = 900, height = 600) %>% 
+  ly_points(Culmen.Length..mm., Culmen.Depth..mm., data = pinguinos,
+            color = Species, glyph = Species, 
+            hover = list(Culmen.Length..mm., Culmen.Depth..mm.))
+p
+```
+
+## ¿Y cómo se ve su distribución espacial?
+
+
+```{r spatial-points, echo=TRUE, include=TRUE}
+pinguinos <- pinguinos %>% mutate(lon = runif(n = nrow(pinguinos), min = -63.85, max = -63.25))
+pinguinos <- pinguinos %>% mutate(lat = runif(n = nrow(pinguinos), min = -64.776404, max = -64.460535))
+```
+
+```{r spatial-dist, include=TRUE, collapse=TRUE}
+leaflet(data = pinguinos) %>%
+  addTiles() %>% 
+  setView(-63.60, -64.5764, 8) %>% 
+  addMarkers(~lon, ~lat, 
+             popup = paste("Especie:", pinguinos$Species, "<br>",
+                           "Sexo:", pinguinos$Sex, "<br>",
+                           "Stage:", pinguinos$Stage, "<br>",
+                           "Comments:", pinguinos$Comments),
+             label = ~as.character(Species),
+             clusterOptions = markerClusterOptions())
+```
